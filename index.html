@@ -1,0 +1,344 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
+  <meta name="theme-color" content="#0f172a">
+  <meta name="apple-mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+  <meta name="description" content="PotholeGuard - Real-time phone-only pothole detection and rider alert system">
+  <title>PotholeGuard</title>
+
+  <link rel="manifest" href="manifest.json">
+  <link rel="icon" type="image/png" sizes="192x192" href="icons/icon-192.png">
+  <link rel="apple-touch-icon" href="icons/icon-192.png">
+  <link rel="stylesheet" href="styles.css">
+</head>
+<body>
+  <div class="app-viewport">
+    <!-- Camera Feed and Overlay Canvas -->
+    <div id="video-wrapper">
+      <video id="camera-video" playsinline autoplay muted></video>
+      <canvas id="overlay-canvas"></canvas>
+    </div>
+
+    <!-- HUD Header & Metrics -->
+    <header class="hud-topbar">
+      <div class="hud-brand">
+        <span id="system-status-dot" class="brand-dot standby" title="System Standby"></span>
+        <div class="brand-badge">
+          <span>PotholeGuard</span>
+        </div>
+      </div>
+
+      <div class="hud-metrics">
+        <div class="metric-pill" id="res-pill" title="Camera Resolution">
+          <span class="label">RES</span>
+          <span id="res-value">--x--</span>
+        </div>
+        <div class="metric-pill" id="fps-pill" title="Frames Per Second">
+          <span class="label">FPS</span>
+          <span id="fps-value">0.0</span>
+        </div>
+        <button id="settings-open-btn" class="icon-btn" aria-label="Open Settings" title="Settings">
+          <svg viewBox="0 0 24 24">
+            <path d="M19.14 12.94c.04-.3.06-.61.06-.94 0-.32-.02-.64-.07-.94l2.03-1.58a.49.49 0 0 0 .12-.61l-1.92-3.32a.488.488 0 0 0-.59-.22l-2.39.96c-.5-.38-1.03-.7-1.62-.94l-.36-2.54a.484.484 0 0 0-.48-.41h-3.84c-.24 0-.43.17-.47.41l-.36 2.54c-.59.24-1.13.57-1.62.94l-2.39-.96c-.22-.08-.47 0-.59.22L2.74 8.87c-.12.21-.08.47.12.61l2.03 1.58c-.05.3-.09.63-.09.94s.02.64.07.94l-2.03 1.58a.49.49 0 0 0-.12.61l1.92 3.32c.12.22.37.29.59.22l2.39-.96c.5.38 1.03.7 1.62.94l.36 2.54c.05.24.24.41.48.41h3.84c.24 0 .44-.17.47-.41l.36-2.54c.59-.24 1.13-.56 1.62-.94l2.39.96c.22.08.47 0 .59-.22l1.92-3.32c.12-.22.07-.47-.12-.61l-2.01-1.58zM12 15.6c-1.98 0-3.6-1.62-3.6-3.6s1.62-3.6 3.6-3.6 3.6 1.62 3.6 3.6-1.62 3.6-3.6 3.6z"/>
+          </svg>
+        </button>
+      </div>
+    </header>
+
+    <!-- Error Banner / Notification -->
+    <div id="error-banner" class="error-banner hidden" role="alert">
+      <div class="error-header">
+        <svg width="24" height="24" viewBox="0 0 24 24" fill="#fee2e2">
+          <path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm1 15h-2v-2h2v2zm0-4h-2V7h2v6z"/>
+        </svg>
+        <span id="error-title">Camera Error</span>
+      </div>
+      <div id="error-message" class="error-body">
+        Camera access could not be established.
+      </div>
+      <div class="error-actions">
+        <button id="error-retry-btn" class="btn-secondary">Retry</button>
+        <button id="error-dismiss-btn" class="btn-secondary">Dismiss</button>
+      </div>
+    </div>
+
+    <!-- Start Overlay (Required user gesture for Camera, Audio, Vibration) -->
+    <div id="start-overlay" class="start-overlay">
+      <div class="start-card">
+        <img src="icons/icon-192.png" alt="PotholeGuard Icon" class="start-logo">
+        <div class="start-info">
+          <h1 class="start-title">PotholeGuard</h1>
+          <p class="start-subtitle">
+            Smart on-device pothole detection and real-time audio/vibration rider alert system.
+          </p>
+        </div>
+        <button id="start-btn" class="start-btn" type="button">
+          <svg width="28" height="28" viewBox="0 0 24 24" fill="currentColor">
+            <path d="M8 5v14l11-7z"/>
+          </svg>
+          Start Camera
+        </button>
+        <p class="start-hint">
+          Requires camera, orientation and sensor permissions. Runs 100% on-device.
+        </p>
+      </div>
+    </div>
+
+    <!-- Settings Drawer / Modal -->
+    <div id="settings-backdrop" class="modal-backdrop">
+      <div class="settings-drawer" role="dialog" aria-modal="true" aria-labelledby="settings-heading">
+        <div class="settings-header">
+          <div class="settings-title" id="settings-heading">
+            <svg width="22" height="22" viewBox="0 0 24 24" fill="currentColor">
+              <path d="M19.14 12.94c.04-.3.06-.61.06-.94 0-.32-.02-.64-.07-.94l2.03-1.58a.49.49 0 0 0 .12-.61l-1.92-3.32a.488.488 0 0 0-.59-.22l-2.39.96c-.5-.38-1.03-.7-1.62-.94l-.36-2.54a.484.484 0 0 0-.48-.41h-3.84c-.24 0-.43.17-.47.41l-.36 2.54c-.59.24-1.13.57-1.62.94l-2.39-.96c-.22-.08-.47 0-.59.22L2.74 8.87c-.12.21-.08.47.12.61l2.03 1.58c-.05.3-.09.63-.09.94s.02.64.07.94l-2.03 1.58a.49.49 0 0 0-.12.61l1.92 3.32c.12.22.37.29.59.22l2.39-.96c.5.38 1.03.7 1.62.94l.36 2.54c.05.24.24.41.48.41h3.84c.24 0 .44-.17.47-.41l.36-2.54c.59-.24 1.13-.56 1.62-.94l2.39.96c.22.08.47 0 .59-.22l1.92-3.32c.12-.22.07-.47-.12-.61l-2.01-1.58zM12 15.6c-1.98 0-3.6-1.62-3.6-3.6s1.62-3.6 3.6-3.6 3.6 1.62 3.6 3.6-1.62 3.6-3.6 3.6z"/>
+            </svg>
+            Settings
+          </div>
+          <button id="settings-close-btn" class="icon-btn" aria-label="Close Settings">
+            <svg viewBox="0 0 24 24"><path d="M19 6.41L17.59 5 12 10.59 6.41 5 5 6.41 10.59 12 5 17.59 6.41 19 12 13.41 17.59 19 19 17.59 13.41 12z"/></svg>
+          </button>
+        </div>
+
+        <form id="settings-form" class="settings-content">
+          <!-- Detection Section -->
+          <div class="settings-group">
+            <div class="group-title">Detection Thresholds</div>
+            
+            <div class="setting-item">
+              <div class="setting-label-row">
+                <label for="cfg-confidenceThreshold">Confidence Threshold</label>
+                <span class="setting-val-badge" id="val-confidenceThreshold">0.45</span>
+              </div>
+              <input type="range" class="setting-input-range" id="cfg-confidenceThreshold" name="confidenceThreshold" min="0.10" max="0.95" step="0.05">
+              <div class="setting-desc">Minimum score for raw AI candidate boxes</div>
+            </div>
+
+            <div class="setting-item">
+              <div class="setting-label-row">
+                <label for="cfg-iouThreshold">NMS IoU Threshold</label>
+                <span class="setting-val-badge" id="val-iouThreshold">0.45</span>
+              </div>
+              <input type="range" class="setting-input-range" id="cfg-iouThreshold" name="iouThreshold" min="0.10" max="0.90" step="0.05">
+              <div class="setting-desc">Suppresses overlapping duplicate detections</div>
+            </div>
+
+            <div class="setting-item setting-toggle-row">
+              <div>
+                <label for="cfg-forceWasm" style="font-weight: 500;">Force WASM Engine</label>
+                <div class="setting-desc">Disable WebGPU and use WebAssembly</div>
+              </div>
+              <label class="toggle-switch">
+                <input type="checkbox" id="cfg-forceWasm" name="forceWasm">
+                <span class="slider-round"></span>
+              </label>
+            </div>
+          </div>
+
+          <!-- Tracking Section -->
+          <div class="settings-group">
+            <div class="group-title">Multi-Frame Tracking</div>
+
+            <div class="setting-item">
+              <div class="setting-label-row">
+                <label for="cfg-confirmFrames">Confirm Frames</label>
+                <span class="setting-val-badge" id="val-confirmFrames">3</span>
+              </div>
+              <input type="range" class="setting-input-range" id="cfg-confirmFrames" name="confirmFrames" min="1" max="10" step="1">
+              <div class="setting-desc">Must be detected in at least X frames before alert</div>
+            </div>
+
+            <div class="setting-item">
+              <div class="setting-label-row">
+                <label for="cfg-windowFrames">Window Frames</label>
+                <span class="setting-val-badge" id="val-windowFrames">5</span>
+              </div>
+              <input type="range" class="setting-input-range" id="cfg-windowFrames" name="windowFrames" min="2" max="15" step="1">
+              <div class="setting-desc">Total frame history window size</div>
+            </div>
+
+            <div class="setting-item">
+              <div class="setting-label-row">
+                <label for="cfg-maxMissedFrames">Max Missed Frames</label>
+                <span class="setting-val-badge" id="val-maxMissedFrames">2</span>
+              </div>
+              <input type="range" class="setting-input-range" id="cfg-maxMissedFrames" name="maxMissedFrames" min="1" max="8" step="1">
+              <div class="setting-desc">Drop track after consecutive misses</div>
+            </div>
+          </div>
+
+          <!-- Corridor Section -->
+          <div class="settings-group">
+            <div class="group-title">Rider-Path Corridor</div>
+
+            <div class="setting-item">
+              <div class="setting-label-row">
+                <label for="cfg-horizonY">Horizon Row (fraction)</label>
+                <span class="setting-val-badge" id="val-horizonY">0.45</span>
+              </div>
+              <input type="range" class="setting-input-range" id="cfg-horizonY" name="horizonY" min="0.10" max="0.80" step="0.02">
+              <div class="setting-desc">Top of corridor as fraction of screen height</div>
+            </div>
+
+            <div class="setting-item">
+              <div class="setting-label-row">
+                <label for="cfg-corridorBottomWidth">Bottom Width</label>
+                <span class="setting-val-badge" id="val-corridorBottomWidth">0.85</span>
+              </div>
+              <input type="range" class="setting-input-range" id="cfg-corridorBottomWidth" name="corridorBottomWidth" min="0.30" max="1.00" step="0.05">
+              <div class="setting-desc">Corridor width at bottom of frame</div>
+            </div>
+
+            <div class="setting-item">
+              <div class="setting-label-row">
+                <label for="cfg-corridorTopWidth">Top Width</label>
+                <span class="setting-val-badge" id="val-corridorTopWidth">0.25</span>
+              </div>
+              <input type="range" class="setting-input-range" id="cfg-corridorTopWidth" name="corridorTopWidth" min="0.05" max="0.70" step="0.05">
+              <div class="setting-desc">Corridor width at horizon row</div>
+            </div>
+
+            <div class="setting-item">
+              <div class="setting-label-row">
+                <label for="cfg-corridorCenterX">Corridor Center</label>
+                <span class="setting-val-badge" id="val-corridorCenterX">0.50</span>
+              </div>
+              <input type="range" class="setting-input-range" id="cfg-corridorCenterX" name="corridorCenterX" min="0.20" max="0.80" step="0.02">
+              <div class="setting-desc">Horizontal corridor center position</div>
+            </div>
+          </div>
+
+          <!-- Camera & Geometry Section -->
+          <div class="settings-group">
+            <div class="group-title">Camera & Bike Mount</div>
+
+            <div class="setting-item">
+              <div class="setting-label-row">
+                <label for="cfg-cameraHeightM">Camera Height (m)</label>
+                <span class="setting-val-badge" id="val-cameraHeightM">1.10 m</span>
+              </div>
+              <input type="range" class="setting-input-range" id="cfg-cameraHeightM" name="cameraHeightM" min="0.50" max="2.20" step="0.05">
+              <div class="setting-desc">Measured lens height above flat ground (H)</div>
+            </div>
+
+            <div class="setting-item">
+              <div class="setting-label-row">
+                <label for="cfg-cameraPitchDeg">Camera Pitch (deg)</label>
+                <span class="setting-val-badge" id="val-cameraPitchDeg">12.0°</span>
+              </div>
+              <input type="range" class="setting-input-range" id="cfg-cameraPitchDeg" name="cameraPitchDeg" min="0.0" max="45.0" step="0.5">
+              <div class="setting-desc">Nominal downward tilt angle</div>
+            </div>
+
+            <div class="setting-item">
+              <div class="setting-label-row">
+                <label for="cfg-pitchTrimDeg">Pitch Trim Offset (deg)</label>
+                <span class="setting-val-badge" id="val-pitchTrimDeg">0.0°</span>
+              </div>
+              <input type="range" class="setting-input-range" id="cfg-pitchTrimDeg" name="pitchTrimDeg" min="-15.0" max="15.0" step="0.5">
+              <div class="setting-desc">Calibration trim adjustment</div>
+            </div>
+
+            <div class="setting-item">
+              <div class="setting-label-row">
+                <label for="cfg-vFovDeg">Vertical FOV (deg)</label>
+                <span class="setting-val-badge" id="val-vFovDeg">50.0°</span>
+              </div>
+              <input type="range" class="setting-input-range" id="cfg-vFovDeg" name="vFovDeg" min="30.0" max="85.0" step="1.0">
+              <div class="setting-desc">Assumed camera lens vertical Field of View</div>
+            </div>
+
+            <div class="setting-item setting-toggle-row">
+              <div>
+                <label for="cfg-manualPitchOverride" style="font-weight: 500;">Manual Pitch Override</label>
+                <div class="setting-desc">Ignore gyro beta and use fixed pitch value</div>
+              </div>
+              <label class="toggle-switch">
+                <input type="checkbox" id="cfg-manualPitchOverride" name="manualPitchOverride">
+                <span class="slider-round"></span>
+              </label>
+            </div>
+          </div>
+
+          <!-- Distance & Alerts Section -->
+          <div class="settings-group">
+            <div class="group-title">Alerts & Distance Bands</div>
+
+            <div class="setting-item">
+              <div class="setting-label-row">
+                <label for="cfg-maxDistanceM">Max Distance (m)</label>
+                <span class="setting-val-badge" id="val-maxDistanceM">35 m</span>
+              </div>
+              <input type="range" class="setting-input-range" id="cfg-maxDistanceM" name="maxDistanceM" min="15" max="50" step="1">
+              <div class="setting-desc">Maximum valid distance estimation</div>
+            </div>
+
+            <div class="setting-item">
+              <div class="setting-label-row">
+                <label for="cfg-minAlertSpeedKmh">Min Alert Speed (km/h)</label>
+                <span class="setting-val-badge" id="val-minAlertSpeedKmh">5 km/h</span>
+              </div>
+              <input type="range" class="setting-input-range" id="cfg-minAlertSpeedKmh" name="minAlertSpeedKmh" min="0" max="30" step="1">
+              <div class="setting-desc">Suppresses nuisance alerts while stopped</div>
+            </div>
+
+            <div class="setting-item">
+              <div class="setting-label-row">
+                <label for="cfg-alertCooldownSec">Alert Cooldown (sec)</label>
+                <span class="setting-val-badge" id="val-alertCooldownSec">4.0 s</span>
+              </div>
+              <input type="range" class="setting-input-range" id="cfg-alertCooldownSec" name="alertCooldownSec" min="1.0" max="10.0" step="0.5">
+              <div class="setting-desc">Minimum delay between alerts for same track</div>
+            </div>
+
+            <div class="setting-item setting-toggle-row">
+              <div>
+                <label for="cfg-voiceEnabled" style="font-weight: 500;">Voice Alerts</label>
+                <div class="setting-desc">SpeechSynthesis voice prompt</div>
+              </div>
+              <label class="toggle-switch">
+                <input type="checkbox" id="cfg-voiceEnabled" name="voiceEnabled">
+                <span class="slider-round"></span>
+              </label>
+            </div>
+
+            <div class="setting-item setting-toggle-row">
+              <div>
+                <label for="cfg-vibrationEnabled" style="font-weight: 500;">Haptic Vibration</label>
+                <div class="setting-desc">Vibrate motor warning pulses</div>
+              </div>
+              <label class="toggle-switch">
+                <input type="checkbox" id="cfg-vibrationEnabled" name="vibrationEnabled">
+                <span class="slider-round"></span>
+              </label>
+            </div>
+
+            <div class="setting-item setting-toggle-row">
+              <div>
+                <label for="cfg-beepsEnabled" style="font-weight: 500;">Audio Beeps</label>
+                <div class="setting-desc">Web Audio API backup beeps</div>
+              </div>
+              <label class="toggle-switch">
+                <input type="checkbox" id="cfg-beepsEnabled" name="beepsEnabled">
+                <span class="slider-round"></span>
+              </label>
+            </div>
+          </div>
+        </form>
+
+        <div class="settings-footer">
+          <button type="button" id="settings-save-btn" class="btn-primary">Save Changes</button>
+          <button type="button" id="settings-reset-btn" class="btn-reset">Reset</button>
+        </div>
+      </div>
+    </div>
+
+    <!-- Toast Notification -->
+    <div id="toast" class="toast-msg">Settings saved</div>
+  </div>
+
+  <script type="module" src="app.js"></script>
+</body>
+</html>
