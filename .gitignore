@@ -1,1 +1,16 @@
 .vercel
+.venv
+__pycache__/
+*.pyc
+
+# Dataset images and labels (large binary assets)
+dataset/images/
+dataset/labels/
+*.zip
+*.tar.gz
+
+# Training runs and intermediate checkpoints
+results/training/
+runs/
+*.pt
+!models/best.pt
