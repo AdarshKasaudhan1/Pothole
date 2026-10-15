@@ -8,7 +8,7 @@ import { Config } from './config.js';
 
 let session = null;
 let activeBackend = 'Initializing...';
-let isModelLoading = false;
+let initPromise = null;
 let offscreenCanvas = null;
 let offscreenCtx = null;
 
@@ -20,48 +20,86 @@ let lastDetectionCount = 0;
  * Initialize and load the ONNX Runtime Web inference session
  */
 export async function initDetector(onStatusChange) {
-  if (session) return { session, backend: activeBackend };
-  if (isModelLoading) return null;
-
-  isModelLoading = true;
-  if (typeof window.ort === 'undefined') {
-    isModelLoading = false;
-    throw new Error('ONNX Runtime Web (ort) library is not loaded. Ensure lib/ort.all.min.js is included.');
+  if (session) {
+    if (onStatusChange) onStatusChange(`AI Ready (${activeBackend})`);
+    return { session, backend: activeBackend };
   }
 
-  // Ensure wasm binary assets are resolved relative to ./lib/
-  window.ort.env.wasm.wasmPaths = './lib/';
-  if (navigator.hardwareConcurrency) {
-    window.ort.env.wasm.numThreads = Math.min(4, Math.max(1, navigator.hardwareConcurrency - 1));
+  if (initPromise) {
+    return initPromise;
   }
 
-  const providers = Config.forceWasm ? ['wasm'] : ['webgpu', 'wasm'];
-  if (onStatusChange) onStatusChange('Loading AI Model...');
+  initPromise = (async () => {
+    if (typeof window === 'undefined' || typeof window.ort === 'undefined') {
+      throw new Error('ONNX Runtime Web (ort) library is not loaded. Ensure lib/ort.all.min.js is included.');
+    }
 
-  const modelUrl = './models/pothole.onnx';
+    if (onStatusChange) onStatusChange('Configuring WASM runtime...');
 
-  try {
-    session = await window.ort.InferenceSession.create(modelUrl, {
-      executionProviders: providers,
-      graphOptimizationLevel: 'all'
-    });
+    // Resolve wasm path to absolute URL
+    const basePath = (typeof window !== 'undefined' && window.location) ?
+      new URL('./lib/', window.location.href).href : './lib/';
+    window.ort.env.wasm.wasmPaths = basePath;
+    window.ort.env.wasm.simd = true;
 
-    activeBackend = Config.forceWasm ? 'WASM' : (window.navigator?.gpu ? 'WebGPU' : 'WASM');
-    console.log(`[PotholeGuard Detector] Model loaded with backend: ${activeBackend}`);
-  } catch (gpuErr) {
-    console.warn('[PotholeGuard Detector] Preferred provider failed, falling back to WASM...', gpuErr);
-    session = await window.ort.InferenceSession.create(modelUrl, {
-      executionProviders: ['wasm'],
-      graphOptimizationLevel: 'all'
-    });
-    activeBackend = 'WASM';
-    console.log('[PotholeGuard Detector] Model loaded successfully with WASM fallback.');
-  } finally {
-    isModelLoading = false;
-  }
+    // Multi-threading only if crossOriginIsolated is active
+    if (typeof window !== 'undefined' && window.crossOriginIsolated) {
+      const threads = Math.min(4, Math.max(1, (navigator.hardwareConcurrency || 4) - 1));
+      window.ort.env.wasm.numThreads = threads;
+      console.log(`[PotholeGuard Detector] WASM multi-threading enabled (${threads} threads)`);
+    } else {
+      window.ort.env.wasm.numThreads = 1;
+      console.log('[PotholeGuard Detector] WASM single-thread mode (not cross-origin isolated)');
+    }
 
-  if (onStatusChange) onStatusChange(`AI Ready (${activeBackend})`);
-  return { session, backend: activeBackend };
+    const modelUrl = (typeof window !== 'undefined' && window.location) ?
+      new URL('./models/pothole.onnx', window.location.href).href : './models/pothole.onnx';
+
+    if (onStatusChange) onStatusChange('Fetching AI Model (10.9MB)...');
+
+    // Fetch as ArrayBuffer for clean error handling and fast initialization
+    let modelSource = modelUrl;
+    try {
+      const resp = await fetch(modelUrl);
+      if (!resp.ok) {
+        throw new Error(`HTTP ${resp.status} ${resp.statusText}`);
+      }
+      modelSource = await resp.arrayBuffer();
+      console.log(`[PotholeGuard Detector] Downloaded model buffer: ${(modelSource.byteLength / (1024 * 1024)).toFixed(2)} MB`);
+    } catch (fetchErr) {
+      console.warn('[PotholeGuard Detector] Fetch failed, falling back to direct URL...', fetchErr.message);
+      modelSource = modelUrl;
+    }
+
+    if (onStatusChange) onStatusChange('Compiling Model Graph...');
+
+    // INT8 quantized YOLO models run natively on the WASM SIMD execution provider
+    try {
+      session = await window.ort.InferenceSession.create(modelSource, {
+        executionProviders: ['wasm'],
+        graphOptimizationLevel: 'all'
+      });
+      activeBackend = 'WASM';
+      console.log('[PotholeGuard Detector] Model loaded successfully with WASM provider.');
+    } catch (optErr) {
+      console.warn('[PotholeGuard Detector] All optimizations failed, retrying basic graph optimization...', optErr);
+      session = await window.ort.InferenceSession.create(modelSource, {
+        executionProviders: ['wasm'],
+        graphOptimizationLevel: 'basic'
+      });
+      activeBackend = 'WASM';
+    }
+
+    if (onStatusChange) onStatusChange(`AI Ready (${activeBackend})`);
+    return { session, backend: activeBackend };
+  })().catch((err) => {
+    initPromise = null; // Reset promise so subsequent clicks can retry
+    activeBackend = 'Failed';
+    console.error('[PotholeGuard Detector] Failed to initialize detector:', err);
+    throw err;
+  });
+
+  return initPromise;
 }
 
 /**
@@ -249,6 +287,10 @@ function applyNms(boxes, iouThresh) {
 export async function detectFrame(imageSource) {
   if (!session) {
     await initDetector();
+  }
+
+  if (!session) {
+    throw new Error('AI Model is not ready yet');
   }
 
   const startT = performance.now();

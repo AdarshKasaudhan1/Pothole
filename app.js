@@ -241,12 +241,23 @@ async function handleStart() {
   // 3. Preload/Initialize AI Model
   startBtn.textContent = 'Initializing AI...';
   try {
-    const { backend } = await initDetector((status) => {
+    const res = await initDetector((status) => {
       startBtn.textContent = status;
     });
-    backendValueEl.textContent = backend;
+    if (res && res.backend) {
+      backendValueEl.textContent = res.backend;
+    }
   } catch (aiErr) {
-    console.warn('[PotholeGuard] AI preload warning:', aiErr);
+    console.error('[PotholeGuard] AI preload error:', aiErr);
+    showError('AI Model Failed to Load', aiErr.message || 'Check your internet connection and reload the page.');
+    startBtn.disabled = false;
+    startBtn.innerHTML = `
+      <svg width="28" height="28" viewBox="0 0 24 24" fill="currentColor">
+        <path d="M8 5v14l11-7z"/>
+      </svg>
+      Retry Start
+    `;
+    return;
   }
 
   // 4. Start Camera Stream
@@ -453,6 +464,9 @@ async function runDetectorLoop() {
     const result = await detectFrame(videoEl);
     if (result && isRunning && !isTestImageActive) {
       inferValueEl.textContent = `${result.inferenceMs}ms`;
+      if (backendValueEl.textContent === '--' || backendValueEl.textContent === 'Initializing...') {
+        backendValueEl.textContent = 'WASM';
+      }
 
       // 1. Multi-Frame Tracker Update
       latestTracks = tracker.update(result.detections);

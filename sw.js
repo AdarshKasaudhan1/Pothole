@@ -2,11 +2,11 @@
  * PotholeGuard - Service Worker
  * RULE 3: Bump CACHE_VERSION constant on every change so phones load the new version.
  */
-const CACHE_VERSION = 'potholeguard-v8.0.0';
+const CACHE_VERSION = 'potholeguard-v9.0.0';
 const CACHE_NAME = `potholeguard-cache-${CACHE_VERSION}`;
 
 // Core app shell assets to precache on install
-const APP_SHELL = [
+const CORE_APP_SHELL = [
   './',
   './index.html',
   './styles.css',
@@ -22,16 +22,23 @@ const APP_SHELL = [
   './manifest.json',
   './tests.html',
   './lib/ort.all.min.js',
-  './models/pothole.onnx',
   './icons/icon-192.png',
   './icons/icon-512.png'
 ];
 
+const LARGE_BINARIES = [
+  './models/pothole.onnx',
+  './lib/ort-wasm-simd-threaded.wasm',
+  './lib/ort-wasm-simd-threaded.mjs'
+];
+
 self.addEventListener('install', (event) => {
   event.waitUntil(
-    caches.open(CACHE_NAME).then((cache) => {
-      console.log(`[SW ${CACHE_VERSION}] Pre-caching app shell...`);
-      return cache.addAll(APP_SHELL);
+    caches.open(CACHE_NAME).then(async (cache) => {
+      console.log(`[SW ${CACHE_VERSION}] Pre-caching core app shell...`);
+      await cache.addAll(CORE_APP_SHELL);
+      // Pre-cache large binaries without failing installation on slow connections
+      await Promise.allSettled(LARGE_BINARIES.map((url) => cache.add(url)));
     }).then(() => self.skipWaiting())
   );
 });

@@ -10,7 +10,7 @@ export const DEFAULT_CONFIG = Object.freeze({
   iouThreshold: 0.45,
   modelInputWidth: 640,
   modelInputHeight: 640,
-  forceWasm: false,
+  forceWasm: true,
 
   // --- Multi-Frame Tracker ---
   confirmFrames: 2,         // Must be seen in at least X frames
@@ -66,7 +66,7 @@ export const DEFAULT_CONFIG = Object.freeze({
   speechRate: 1.1
 });
 
-const STORAGE_KEY = 'potholeguard_config_v2';
+const STORAGE_KEY = 'potholeguard_config_v3';
 
 // Mutable runtime configuration object initialized with defaults
 export const Config = { ...DEFAULT_CONFIG };
