@@ -1,0 +1,14 @@
+# Vercel Ignore File - Only deploy browser PWA assets
+dataset/
+yolov7/
+runs/
+results/
+training/
+Doc/
+*.py
+*.pt
+lib/*.map
+*.zip
+*.tar.gz
+.git
+.github

@@ -2,7 +2,7 @@
  * PotholeGuard - Service Worker
  * RULE 3: Bump CACHE_VERSION constant on every change so phones load the new version.
  */
-const CACHE_VERSION = 'potholeguard-v1.0.2';
+const CACHE_VERSION = 'potholeguard-v7.0.0';
 const CACHE_NAME = `potholeguard-cache-${CACHE_VERSION}`;
 
 // Core app shell assets to precache on install
@@ -12,8 +12,17 @@ const APP_SHELL = [
   './styles.css',
   './app.js',
   './config.js',
+  './detector.js',
+  './tracker.js',
+  './geometry.js',
+  './speed.js',
+  './risk.js',
+  './alerts.js',
+  './logger.js',
   './manifest.json',
   './tests.html',
+  './lib/ort.all.min.js',
+  './models/pothole.onnx',
   './icons/icon-192.png',
   './icons/icon-512.png'
 ];

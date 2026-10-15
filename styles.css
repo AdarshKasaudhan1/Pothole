@@ -580,6 +580,244 @@ input:checked + .slider-round:before {
 }
 
 /* ==========================================================================
+   Main Risk / Alert Banner (Prompts 5 & 6)
+   High contrast, sunlight readable, large typography
+   ========================================================================== */
+
+.risk-banner {
+  position: absolute;
+  top: 60px;
+  left: 16px;
+  right: 16px;
+  padding: 12px 18px;
+  border-radius: var(--radius-md);
+  display: flex;
+  align-items: center;
+  gap: 16px;
+  z-index: 25;
+  box-shadow: 0 10px 30px rgba(0, 0, 0, 0.6);
+  backdrop-filter: blur(8px);
+  border: 2px solid transparent;
+  transition: opacity 0.2s ease, transform 0.2s ease;
+  pointer-events: none;
+}
+
+.risk-banner.hidden {
+  display: none !important;
+}
+
+/* Level INFO: Amber / Yellow */
+.risk-banner.level-info {
+  background: rgba(245, 158, 11, 0.92);
+  border-color: #fcd34d;
+  color: #000;
+}
+.risk-banner.level-info .risk-badge {
+  background: #000;
+  color: #fbbf24;
+}
+.risk-banner.level-info .detail-item strong {
+  color: #000;
+}
+
+/* Level WARN: Deep Orange with pulse */
+.risk-banner.level-warn {
+  background: rgba(249, 115, 22, 0.95);
+  border-color: #fdba74;
+  color: #fff;
+  animation: pulse-warn 1.5s infinite;
+}
+.risk-banner.level-warn .risk-badge {
+  background: #fff;
+  color: #ea580c;
+}
+.risk-banner.level-warn .detail-item strong {
+  color: #fff;
+}
+
+/* Level HIGH: Bright Flashing Red */
+.risk-banner.level-high {
+  background: rgba(239, 68, 68, 0.98);
+  border-color: #fca5a5;
+  color: #fff;
+  animation: flash-high 0.8s infinite;
+}
+.risk-banner.level-high .risk-badge {
+  background: #fff;
+  color: #dc2626;
+}
+.risk-banner.level-high .detail-item strong {
+  color: #fff;
+}
+
+@keyframes pulse-warn {
+  0%, 100% { box-shadow: 0 0 15px rgba(249, 115, 22, 0.6); }
+  50% { box-shadow: 0 0 30px rgba(249, 115, 22, 0.9); }
+}
+
+@keyframes flash-high {
+  0%, 100% { transform: scale(1); box-shadow: 0 0 20px rgba(239, 68, 68, 0.8); }
+  50% { transform: scale(1.02); box-shadow: 0 0 40px rgba(239, 68, 68, 1); }
+}
+
+.risk-badge {
+  padding: 6px 14px;
+  border-radius: var(--radius-sm);
+  font-size: 1.1rem;
+  font-weight: 900;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+}
+
+.risk-content {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.risk-title {
+  font-size: 1.3rem;
+  font-weight: 900;
+  letter-spacing: 0.03em;
+  text-transform: uppercase;
+}
+
+.risk-details {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 12px;
+  font-size: 0.95rem;
+  font-weight: 600;
+}
+
+.detail-item strong {
+  font-weight: 800;
+  font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace;
+}
+
+/* ==========================================================================
+   Telemetry Grid & Data Tables (Prompt 4 Debug)
+   ========================================================================== */
+
+.telemetry-grid {
+  display: grid;
+  grid-template-columns: repeat(2, 1fr);
+  gap: 8px;
+}
+
+.telem-item {
+  background: var(--bg-surface-elevated);
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  border-radius: var(--radius-sm);
+  padding: 8px 12px;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+}
+
+.telem-label {
+  font-size: 0.8rem;
+  color: var(--text-muted);
+}
+
+.telem-val {
+  font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace;
+  font-size: 0.88rem;
+  font-weight: 700;
+  color: var(--color-accent);
+}
+
+.btn-alert-test {
+  flex: 1;
+  min-height: 40px;
+  border: none;
+  border-radius: var(--radius-sm);
+  font-weight: 700;
+  font-size: 0.88rem;
+  cursor: pointer;
+  text-transform: uppercase;
+}
+.btn-alert-test.info { background: #f59e0b; color: #000; }
+.btn-alert-test.warn { background: #f97316; color: #fff; }
+.btn-alert-test.high { background: #ef4444; color: #fff; }
+
+/* ==========================================================================
+   Event Marking Buttons & Summary Cards (Prompt 7 Logger)
+   ========================================================================== */
+
+.btn-event {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  padding: 12px 6px;
+  min-height: 70px;
+  border-radius: var(--radius-sm);
+  border: 1px solid rgba(255, 255, 255, 0.15);
+  font-size: 0.76rem;
+  font-weight: 800;
+  cursor: pointer;
+  text-transform: uppercase;
+  gap: 4px;
+}
+
+.btn-event .event-icon {
+  font-size: 1.3rem;
+}
+
+.btn-event.good {
+  background: rgba(16, 185, 129, 0.2);
+  border-color: #10b981;
+  color: #34d399;
+}
+.btn-event.good:active { background: #10b981; color: #fff; }
+
+.btn-event.false-alarm {
+  background: rgba(245, 158, 11, 0.2);
+  border-color: #f59e0b;
+  color: #fbbf24;
+}
+.btn-event.false-alarm:active { background: #f59e0b; color: #000; }
+
+.btn-event.missed {
+  background: rgba(239, 68, 68, 0.2);
+  border-color: #ef4444;
+  color: #f87171;
+}
+.btn-event.missed:active { background: #ef4444; color: #fff; }
+
+.summary-metrics-grid {
+  display: grid;
+  grid-template-columns: repeat(2, 1fr);
+  gap: 8px;
+}
+
+.summary-metric-card {
+  background: var(--bg-surface-elevated);
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  border-radius: var(--radius-sm);
+  padding: 10px 12px;
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.summary-metric-card .lbl {
+  font-size: 0.72rem;
+  color: var(--text-muted);
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+}
+
+.summary-metric-card .val {
+  font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace;
+  font-size: 1.05rem;
+  font-weight: 800;
+  color: #fff;
+}
+
+/* ==========================================================================
    Landscape Optimization (Bike Mount View)
    ========================================================================== */
 
@@ -587,6 +825,15 @@ input:checked + .slider-round:before {
   .hud-topbar {
     height: 48px;
     padding: 6px 16px;
+  }
+  .risk-banner {
+    top: 52px;
+    left: 24px;
+    right: 24px;
+    padding: 10px 16px;
+  }
+  .risk-title {
+    font-size: 1.15rem;
   }
   .start-card {
     flex-direction: row;
@@ -598,3 +845,20 @@ input:checked + .slider-round:before {
     height: 80px;
   }
 }
+
+@media (max-width: 600px) {
+  .metric-pill {
+    padding: 3px 8px;
+    font-size: 0.72rem;
+    gap: 4px;
+  }
+  .hud-brand {
+    display: none;
+  }
+  .risk-details {
+    font-size: 0.85rem;
+    gap: 8px;
+  }
+}
+
+

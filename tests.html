@@ -137,6 +137,242 @@
       Config.confidenceThreshold === DEFAULT_CONFIG.confidenceThreshold
     );
 
+    // --- Detector Module Tests ---
+    try {
+      const detector = await import('./detector.js');
+      assert(
+        'detector.js exports initDetector function',
+        typeof detector.initDetector === 'function'
+      );
+      assert(
+        'detector.js exports detectFrame function',
+        typeof detector.detectFrame === 'function'
+      );
+      assert(
+        'detector.js exports drawDetections function',
+        typeof detector.drawDetections === 'function'
+      );
+      assert(
+        'detector.js exports getDetectorState function',
+        typeof detector.getDetectorState === 'function'
+      );
+    } catch (detErr) {
+      assert('detector.js imports cleanly', false, detErr.message);
+    }
+
+    // --- Prompt 3: Tracker & Geometry Unit Tests ---
+    try {
+      const { PotholeTracker } = await import('./tracker.js');
+      const { getCorridor, checkInPath } = await import('./geometry.js');
+
+      // 1. A one-frame false detection never becomes confirmed
+      const t1 = new PotholeTracker(Config);
+      const fakeBox = { x1: 500, y1: 400, x2: 600, y2: 500, confidence: 0.9 };
+      t1.update([fakeBox]); // Frame 1: tentative
+      t1.update([]);        // Frame 2: gone
+      assert(
+        'a one-frame false detection never becomes confirmed',
+        t1.getConfirmedTracks().length === 0
+      );
+
+      // 2. A track survives one missed frame
+      const t2 = new PotholeTracker(Config);
+      t2.update([fakeBox]); // 1
+      t2.update([fakeBox]); // 2
+      t2.update([fakeBox]); // 3 (hits >= 3 -> confirmed)
+      t2.update([]);        // 4 (missed 1 frame)
+      assert(
+        'a track survives one missed frame',
+        t2.tracks.length === 1 && t2.tracks[0].misses === 1
+      );
+
+      // 3. Two potholes keep separate ids
+      const t3 = new PotholeTracker(Config);
+      const boxLeft = { x1: 150, y1: 450, x2: 250, y2: 550, confidence: 0.85 };
+      const boxRight = { x1: 850, y1: 450, x2: 950, y2: 550, confidence: 0.88 };
+      t3.update([boxLeft, boxRight]);
+      assert(
+        'two potholes keep separate ids',
+        t3.tracks.length === 2 && t3.tracks[0].id !== t3.tracks[1].id
+      );
+
+      // 4. A box in the middle is inPath and one at the edge is not
+      const frameW = 1280;
+      const frameH = 720;
+      const middleBox = { x1: 600, y1: 500, x2: 680, y2: 600 }; // center at 640
+      const edgeBox = { x1: 10, y1: 500, x2: 90, y2: 600 };      // far edge at 50
+
+      const resMiddle = checkInPath(middleBox, frameW, frameH, Config);
+      const resEdge = checkInPath(edgeBox, frameW, frameH, Config);
+
+      assert(
+        'a box in the middle is inPath',
+        resMiddle.inPath === true,
+        `Expected inPath true, got ${resMiddle.inPath}`
+      );
+      assert(
+        'a box at the edge is not inPath',
+        resEdge.inPath === false,
+        `Expected inPath false, got ${resEdge.inPath}`
+      );
+
+      // Corridor geometry test
+      const corridor = getCorridor(frameW, frameH, Config);
+      assert(
+        'corridor bounds are geometrically valid',
+        corridor.yTop < corridor.yBottom && corridor.halfWTop < corridor.halfWBottom
+      );
+
+      // --- Prompt 4: Distance Estimation & Calibration Unit Tests ---
+      const { estimateDistance, solveCalibration, calculateFocalLengthY } = await import('./geometry.js');
+
+      // 1. Hand-calculated distance test: H = 1.1 m, theta = 10 deg, frameH = 720, cy = 360, vFov = 50 deg
+      // Expected d ~ 3.22 m
+      const handTestBox = { x1: 600, y1: 400, x2: 680, y2: 480 };
+      const dHand = estimateDistance(handTestBox, 1280, 720, 10.0, { ...Config, cameraHeightM: 1.10, vFovDeg: 50.0, distLinearA: 1.0, distLinearB: 0.0 });
+      assert(
+        'hand-calculated distance (H = 1.1m, theta = 10deg, yb = 480) passes (~3.22m)',
+        dHand !== null && Math.abs(dHand.distanceM - 3.22) < 0.05,
+        `Expected ~3.22m, got ${dHand?.distanceM}`
+      );
+
+      // 2. Horizon cutoff: ray above horizon returns null
+      const skyBox = { x1: 600, y1: 50, x2: 680, y2: 100 };
+      const dSky = estimateDistance(skyBox, 1280, 720, 2.0, Config);
+      assert(
+        'ray pointing above horizon returns null',
+        dSky === null
+      );
+
+      // 3. Max distance cutoff
+      const farBox = { x1: 600, y1: 361, x2: 680, y2: 362 };
+      const dFar = estimateDistance(farBox, 1280, 720, 1.0, { ...Config, maxDistanceM: 35.0 });
+      assert(
+        'distance exceeding maxDistanceM returns null',
+        dFar === null
+      );
+
+      // 4. 2-Point Calibration solver round-trip test
+      const H = 1.10;
+      const thetaTrueRad = (12.0 * Math.PI) / 180.0;
+      const fyTrue = 772.0;
+      const cy = 360.0;
+
+      const phi1 = Math.atan(H / 10.0);
+      const dy1 = fyTrue * Math.tan(phi1 - thetaTrueRad);
+      const y1 = cy + dy1;
+
+      const phi2 = Math.atan(H / 20.0);
+      const dy2 = fyTrue * Math.tan(phi2 - thetaTrueRad);
+      const y2 = cy + dy2;
+
+      const calibResult = solveCalibration(10.0, y1, 20.0, y2, 720, 1.10);
+      assert(
+        '2-point calibration solver resolves theta and fy',
+        Math.abs(calibResult.thetaDeg - 12.0) < 0.3 && Math.abs(calibResult.fy - 772) < 10,
+        `Expected theta~12 deg, fy~772; got theta=${calibResult.thetaDeg}, fy=${calibResult.fy}`
+      );
+
+      // Verify a target placed at 15m reads close to 15m
+      const phi15 = Math.atan(H / 15.0);
+      const dy15 = fyTrue * Math.tan(phi15 - thetaTrueRad);
+      const y15 = cy + dy15;
+      const pred15Res = estimateDistance(
+        { x1: 600, y1: 300, x2: 680, y2: y15 },
+        1280,
+        720,
+        calibResult.thetaDeg,
+        { ...Config, cameraHeightM: 1.10, focalLengthY: calibResult.fy, distLinearA: 1.0, distLinearB: 0.0 }
+      );
+      assert(
+        'after calibration, target at 15m reads close to 15m',
+        pred15Res !== null && Math.abs(pred15Res.distanceM - 15.0) < 0.5,
+        `Expected ~15.0m, got ${pred15Res?.distanceM}`
+      );
+
+      // --- Prompt 5: GPS Speed & Dynamic Risk Engine Unit Tests ---
+      const { calculateHaversineDistance } = await import('./speed.js');
+      const { RiskEngine, RISK_LEVELS } = await import('./risk.js');
+
+      // 1. Haversine distance
+      const hDist = calculateHaversineDistance(12.9716, 77.5946, 12.9716, 77.6046);
+      assert(
+        'haversine formula accurately computes distance (~1084m)',
+        Math.abs(hDist - 1084) < 10,
+        `Expected ~1084m, got ${hDist}`
+      );
+
+      const riskEngine = new RiskEngine(Config);
+
+      // 2. Speed 40 km/h (11.11 m/s) with distance 20m gives TTP ~1.8s and level WARN
+      const urgentTrack = { id: 101, isConfirmed: true, inPath: true, confidence: 0.93, distanceM: 20.0 };
+      const r1 = riskEngine.evaluate([urgentTrack], 11.11, 1000);
+      assert(
+        'speed 40 km/h with distance 20m gives TTP ~1.8s and level WARN',
+        r1.level === RISK_LEVELS.WARN && Math.abs(r1.ttpSec - 1.8) < 0.1 && r1.shouldAlert === true,
+        `Got level: ${r1.level}, TTP: ${r1.ttpSec}, shouldAlert: ${r1.shouldAlert}`
+      );
+
+      // 3. Per-track alert cooldown prevents spam in subsequent frame
+      const r1b = riskEngine.evaluate([urgentTrack], 11.11, 1200);
+      assert(
+        'per-track cooldown suppresses duplicate alert within 4s',
+        r1b.level === RISK_LEVELS.WARN && r1b.shouldAlert === false
+      );
+
+      // 4. Low confidence gives NONE
+      riskEngine.reset();
+      const lowConfTrack = { id: 102, isConfirmed: true, inPath: true, confidence: 0.35, distanceM: 20.0 };
+      const r2 = riskEngine.evaluate([lowConfTrack], 11.11, 2000);
+      assert(
+        'low confidence (<0.50) gives risk level NONE',
+        r2.level === RISK_LEVELS.NONE
+      );
+
+      // 5. Off-path gives NONE
+      riskEngine.reset();
+      const offPathTrack = { id: 103, isConfirmed: true, inPath: false, confidence: 0.90, distanceM: 20.0 };
+      const r3 = riskEngine.evaluate([offPathTrack], 11.11, 3000);
+      assert(
+        'off-path pothole gives risk level NONE',
+        r3.level === RISK_LEVELS.NONE
+      );
+
+      // 6. Low speed (< 5 km/h) suppresses alerts
+      riskEngine.reset();
+      const r4 = riskEngine.evaluate([urgentTrack], 0.8, 4000);
+      assert(
+        'low speed (<5 km/h) suppresses rider alerts while stationary',
+        r4.level === RISK_LEVELS.NONE && r4.isSuppressedBySpeed === true
+      );
+
+      // 7. TTP escalation: distance 25m (normally INFO) at 72 km/h (20 m/s) -> TTP 1.25s (<1.5s) -> escalated to WARN
+      riskEngine.reset();
+      const fastTrack = { id: 104, isConfirmed: true, inPath: true, confidence: 0.92, distanceM: 25.0 };
+      const r5 = riskEngine.evaluate([fastTrack], 20.0, 5000);
+      assert(
+        'TTP < 1.5s escalates risk level (INFO -> WARN)',
+        r5.level === RISK_LEVELS.WARN && r5.ttpSec <= 1.5 && r5.shouldAlert === true,
+        `Got level: ${r5.level}, TTP: ${r5.ttpSec}`
+      );
+
+      // --- Prompt 6 & 7: Alerts & Logger Module Imports ---
+      const alertsMod = await import('./alerts.js');
+      assert(
+        'alerts.js exports initAlerts, unlockAudio, handleRiskUpdate, triggerTestAlert',
+        typeof alertsMod.initAlerts === 'function' && typeof alertsMod.handleRiskUpdate === 'function'
+      );
+
+      const loggerMod = await import('./logger.js');
+      assert(
+        'logger.js exports startSession, stopSession, markEvent, downloadSessionCsv',
+        typeof loggerMod.startSession === 'function' && typeof loggerMod.stopSession === 'function' && typeof loggerMod.markEvent === 'function'
+      );
+
+    } catch (trackerErr) {
+      assert('tracker, geometry, risk and logger tests execute cleanly', false, trackerErr.message);
+    }
+
     // Summary
     summaryEl.textContent = `Completed: ${passed} PASSED, ${failed} FAILED`;
     summaryEl.style.color = failed === 0 ? '#34d399' : '#f87171';

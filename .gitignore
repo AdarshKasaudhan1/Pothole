@@ -3,14 +3,18 @@
 __pycache__/
 *.pyc
 
-# Dataset images and labels (large binary assets)
-dataset/images/
-dataset/labels/
+# Large dataset directories (training images & labels)
+dataset/
+yolov7/
+runs/
+results/
+*.pt
+
+# Sourcemaps not required in production
+lib/*.map
+
+# Python training scripts and scratch files
+training/
 *.zip
 *.tar.gz
-
-# Training runs and intermediate checkpoints
-results/training/
-runs/
-*.pt
-!models/best.pt
+Doc/extracted_build_guide.txt
