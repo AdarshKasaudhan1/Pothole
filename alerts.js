@@ -183,11 +183,24 @@ export function triggerVibration(pattern) {
  * Update visual banner and dispatch alerts based on risk engine output
  */
 export function handleRiskUpdate(riskState) {
-  const { level, distanceM, ttpSec, confidence, speedKmh, shouldAlert } = riskState;
+  const { level, distanceM, ttpSec, confidence, speedKmh, shouldAlert, isSuppressedBySpeed } = riskState;
 
   // 1. Update Visual Banner
   if (bannerEl) {
     if (level === 'NONE' || !level) {
+      if (isSuppressedBySpeed && distanceM !== null) {
+        bannerEl.classList.remove('hidden');
+        bannerEl.className = 'risk-banner level-warn';
+
+        if (levelBadgeEl) levelBadgeEl.textContent = 'DETECTED';
+        if (titleEl) titleEl.textContent = 'POTHOLE IN PATH';
+        if (distValEl) distValEl.textContent = `${distanceM}m`;
+        if (confValEl) confValEl.textContent = confidence !== null ? `${confidence}%` : '--';
+        if (speedValEl) speedValEl.textContent = `${speedKmh} km/h`;
+        if (ttpValEl) ttpValEl.textContent = 'STATIONARY';
+        return;
+      }
+
       bannerEl.classList.add('hidden');
       bannerEl.className = 'risk-banner hidden';
     } else {

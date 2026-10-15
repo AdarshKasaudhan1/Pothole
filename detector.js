@@ -412,21 +412,21 @@ export function drawDetections(ctx, items, videoW, videoH, canvasW, canvasH, con
     const pct = Math.round((item.confidence ?? item.score ?? 0.5) * 100);
     const distStr = typeof item.distanceM === 'number' ? ` ${item.distanceM.toFixed(1)}m` : '';
 
-    let strokeColor = '#94a3b8'; // gray for tentative
-    let tagColor = 'rgba(51, 65, 85, 0.9)';
-    let tagText = `TRACKING ${id}${pct}%${distStr}`;
-    let lineWidth = 1.5;
-    let isDashed = true;
+    let strokeColor = '#38bdf8'; // Vivid sky blue for detected pothole
+    let tagColor = '#0284c7';
+    let tagText = `POTHOLE ${id}${distStr || pct + '%'} [DETECTED]`;
+    let lineWidth = 2.5;
+    let isDashed = false;
 
     if (isConfirmed) {
       if (inPath) {
-        strokeColor = '#ef4444'; // Red for confirmed in-path
+        strokeColor = '#ef4444'; // Bright Red for confirmed in-path
         tagColor = '#ef4444';
         tagText = `POTHOLE ${id}${distStr || pct + '%'} [IN PATH]`;
         lineWidth = 3.5;
         isDashed = false;
       } else {
-        strokeColor = '#f59e0b'; // Yellow for confirmed off-path
+        strokeColor = '#f59e0b'; // Bright Yellow/Amber for confirmed off-path
         tagColor = '#f59e0b';
         tagText = `POTHOLE ${id}${distStr || pct + '%'} [OFF PATH]`;
         lineWidth = 2.5;

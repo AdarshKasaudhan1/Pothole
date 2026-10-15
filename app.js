@@ -161,6 +161,15 @@ let sessionStartEpoch = 0;
 function initApp() {
   // Service Worker for offline capability
   if ('serviceWorker' in navigator) {
+    let refreshing = false;
+    navigator.serviceWorker.addEventListener('controllerchange', () => {
+      if (!refreshing) {
+        refreshing = true;
+        console.log('[PotholeGuard] New ServiceWorker activated, refreshing...');
+        window.location.reload();
+      }
+    });
+
     window.addEventListener('load', () => {
       navigator.serviceWorker.register('./sw.js')
         .then((reg) => {
@@ -169,7 +178,7 @@ function initApp() {
             const newWorker = reg.installing;
             newWorker.addEventListener('statechange', () => {
               if (newWorker.state === 'installed' && navigator.serviceWorker.controller) {
-                showToast('New version available. Refresh to update.');
+                showToast('New version available. Updating...');
               }
             });
           });

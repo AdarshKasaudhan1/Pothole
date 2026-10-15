@@ -115,20 +115,33 @@ export class RiskEngine {
       });
     }
 
+    // Pick most urgent pothole: highest severity first, then closest distance
+    candidates.sort((a, b) => {
+      if (b.severity !== a.severity) {
+        return b.severity - a.severity;
+      }
+      return a.distanceM - b.distanceM;
+    });
+
     // If speed is below minimum alert speed, suppress active alerts (or cap to INFO/NONE)
     const isStationaryOrCrawling = speedKmh < minAlertSpeedKmh;
 
     if (candidates.length === 0 || isStationaryOrCrawling) {
+      const topCand = candidates[0] || null;
+      const topDist = topCand ? topCand.distanceM : null;
+      const topConf = topCand ? Math.round(topCand.confidence * 100) : null;
+      const topId = topCand ? topCand.trackId : null;
+
       // Check hysteresis hold
       if (currentTimeMs < this.levelHoldUntil && this.currentLevel !== RISK_LEVELS.NONE) {
         return {
           level: this.currentLevel,
-          distanceM: null,
+          distanceM: topDist,
           ttpSec: null,
-          confidence: null,
+          confidence: topConf,
           speedKmh: parseFloat(speedKmh.toFixed(1)),
           speedMps: parseFloat(speedMps.toFixed(2)),
-          trackId: this.activeAlertTrackId,
+          trackId: this.activeAlertTrackId || topId,
           shouldAlert: false,
           isSuppressedBySpeed: isStationaryOrCrawling && candidates.length > 0
         };
@@ -139,24 +152,16 @@ export class RiskEngine {
 
       return {
         level: RISK_LEVELS.NONE,
-        distanceM: null,
+        distanceM: topDist,
         ttpSec: null,
-        confidence: null,
+        confidence: topConf,
         speedKmh: parseFloat(speedKmh.toFixed(1)),
         speedMps: parseFloat(speedMps.toFixed(2)),
-        trackId: null,
+        trackId: topId,
         shouldAlert: false,
         isSuppressedBySpeed: isStationaryOrCrawling && candidates.length > 0
       };
     }
-
-    // Pick most urgent pothole: highest severity first, then closest distance
-    candidates.sort((a, b) => {
-      if (b.severity !== a.severity) {
-        return b.severity - a.severity;
-      }
-      return a.distanceM - b.distanceM;
-    });
 
     const mostUrgent = candidates[0];
     const candidateSeverity = mostUrgent.severity;

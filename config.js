@@ -66,7 +66,7 @@ export const DEFAULT_CONFIG = Object.freeze({
   speechRate: 1.1
 });
 
-const STORAGE_KEY = 'potholeguard_config_v3';
+const STORAGE_KEY = 'potholeguard_config_v4';
 
 // Mutable runtime configuration object initialized with defaults
 export const Config = { ...DEFAULT_CONFIG };
