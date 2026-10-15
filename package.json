@@ -1,0 +1,9 @@
+{
+  "name": "potholeguard",
+  "version": "1.0.0",
+  "private": true,
+  "description": "Phone-only PWA for real-time pothole detection and rider warning",
+  "scripts": {
+    "build": "echo 'Static web app ready'"
+  }
+}
