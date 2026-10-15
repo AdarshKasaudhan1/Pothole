@@ -467,7 +467,7 @@ async function runDetectorLoop() {
 
       // 3. Confirmed Tracks Count
       const confirmedTracks = tracker.getConfirmedTracks();
-      detValueEl.textContent = confirmedTracks.length;
+      detValueEl.textContent = confirmedTracks.length > 0 ? confirmedTracks.length : (latestTracks.length > 0 ? latestTracks.length : 0);
 
       // 4. Dynamic Risk Engine & Triple-Redundant Alerts
       const speedState = getSpeedState();
@@ -557,15 +557,7 @@ function initTestImageHandlers() {
         detValueEl.textContent = latestTracks.length;
         handleResize();
 
-        // Draw image and overlays
-        overlayCtx.clearRect(0, 0, canvasEl.width, canvasEl.height);
-        const scale = Math.min(canvasEl.width / img.naturalWidth, canvasEl.height / img.naturalHeight);
-        const drawW = img.naturalWidth * scale;
-        const drawH = img.naturalHeight * scale;
-        const offX = (canvasEl.width - drawW) / 2;
-        const offY = (canvasEl.height - drawH) / 2;
-
-        overlayCtx.drawImage(img, offX, offY, drawW, drawH);
+        // Draw image and overlays with exact aspect-ratio fit
         drawDetections(
           overlayCtx,
           latestTracks,
@@ -573,7 +565,8 @@ function initTestImageHandlers() {
           img.naturalHeight,
           canvasEl.width,
           canvasEl.height,
-          Config
+          Config,
+          { fit: 'contain', clear: true, bgImage: img }
         );
 
         // Evaluate risk with default simulated speed (35 km/h)

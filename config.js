@@ -6,14 +6,14 @@
 
 export const DEFAULT_CONFIG = Object.freeze({
   // --- Detection Parameters ---
-  confidenceThreshold: 0.45,
+  confidenceThreshold: 0.30,
   iouThreshold: 0.45,
   modelInputWidth: 640,
   modelInputHeight: 640,
   forceWasm: false,
 
   // --- Multi-Frame Tracker ---
-  confirmFrames: 3,         // Must be seen in at least X frames
+  confirmFrames: 2,         // Must be seen in at least X frames
   windowFrames: 5,          // Out of the last Y frames
   maxMissedFrames: 2,       // Delete track after Z consecutive misses
   trackerIouThreshold: 0.25,
@@ -53,7 +53,7 @@ export const DEFAULT_CONFIG = Object.freeze({
   distHighMaxM: 10.0,       // High risk threshold (under 10m)
   minSpeedMps: 1.0,         // Min speed denominator for TTP
   minAlertSpeedKmh: 5.0,    // Minimum GPS speed to activate warnings
-  alertConfidence: 0.50,    // Min confidence to trigger rider warning
+  alertConfidence: 0.40,    // Min confidence to trigger rider warning
   ttpEscalationSec: 1.5,    // Escalate risk if time-to-pothole < threshold
   riskHysteresisSec: 1.0,   // Delay before lowering risk level
   alertCooldownSec: 4.0,    // Minimum seconds between spoken alerts per track
@@ -66,7 +66,7 @@ export const DEFAULT_CONFIG = Object.freeze({
   speechRate: 1.1
 });
 
-const STORAGE_KEY = 'potholeguard_config_v1';
+const STORAGE_KEY = 'potholeguard_config_v2';
 
 // Mutable runtime configuration object initialized with defaults
 export const Config = { ...DEFAULT_CONFIG };

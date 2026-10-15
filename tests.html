@@ -325,7 +325,7 @@
       const lowConfTrack = { id: 102, isConfirmed: true, inPath: true, confidence: 0.35, distanceM: 20.0 };
       const r2 = riskEngine.evaluate([lowConfTrack], 11.11, 2000);
       assert(
-        'low confidence (<0.50) gives risk level NONE',
+        'low confidence (<0.40) gives risk level NONE',
         r2.level === RISK_LEVELS.NONE
       );
 

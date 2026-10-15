@@ -276,11 +276,12 @@ import { getCorridor } from './geometry.js';
 /**
  * Draw the translucent rider-path trapezoid corridor onto the overlay canvas
  */
-export function drawCorridor(ctx, videoW, videoH, canvasW, canvasH, config = Config) {
+export function drawCorridor(ctx, videoW, videoH, canvasW, canvasH, config = Config, options = {}) {
+  const isContain = options.fit === 'contain';
   const corridor = getCorridor(videoW, videoH, config);
-  const scale = Math.max(canvasW / videoW, canvasH / videoH);
-  const cropX = (videoW * scale - canvasW) / 2;
-  const cropY = (videoH * scale - canvasH) / 2;
+  const scale = isContain ? Math.min(canvasW / videoW, canvasH / videoH) : Math.max(canvasW / videoW, canvasH / videoH);
+  const cropX = isContain ? -(canvasW - videoW * scale) / 2 : (videoW * scale - canvasW) / 2;
+  const cropY = isContain ? -(canvasH - videoH * scale) / 2 : (videoH * scale - canvasH) / 2;
 
   const tlX = corridor.topLeft.x * scale - cropX;
   const tlY = corridor.topLeft.y * scale - cropY;
@@ -330,15 +331,30 @@ export function drawCorridor(ctx, videoW, videoH, canvasW, canvasH, config = Con
  * - Confirmed off-path: Solid yellow/amber
  * - Translucent path corridor
  */
-export function drawDetections(ctx, items, videoW, videoH, canvasW, canvasH, config = Config) {
-  ctx.clearRect(0, 0, canvasW, canvasH);
-  drawCorridor(ctx, videoW, videoH, canvasW, canvasH, config);
+export function drawDetections(ctx, items, videoW, videoH, canvasW, canvasH, config = Config, options = {}) {
+  if (options.clear !== false) {
+    ctx.clearRect(0, 0, canvasW, canvasH);
+  }
+
+  const isContain = options.fit === 'contain';
+  const scale = isContain ? Math.min(canvasW / videoW, canvasH / videoH) : Math.max(canvasW / videoW, canvasH / videoH);
+  const cropX = isContain ? -(canvasW - videoW * scale) / 2 : (videoW * scale - canvasW) / 2;
+  const cropY = isContain ? -(canvasH - videoH * scale) / 2 : (videoH * scale - canvasH) / 2;
+
+  // Render background image if provided (e.g., photo test mode)
+  if (options.bgImage) {
+    const drawW = videoW * scale;
+    const drawH = videoH * scale;
+    const offX = isContain ? (canvasW - drawW) / 2 : -cropX;
+    const offY = isContain ? (canvasH - drawH) / 2 : -cropY;
+    ctx.drawImage(options.bgImage, offX, offY, drawW, drawH);
+  }
+
+  if (options.showCorridor !== false) {
+    drawCorridor(ctx, videoW, videoH, canvasW, canvasH, config, options);
+  }
 
   if (!items || items.length === 0) return;
-
-  const scale = Math.max(canvasW / videoW, canvasH / videoH);
-  const cropX = (videoW * scale - canvasW) / 2;
-  const cropY = (videoH * scale - canvasH) / 2;
 
   ctx.save();
   for (const item of items) {

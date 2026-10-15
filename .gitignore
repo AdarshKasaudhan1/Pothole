@@ -18,3 +18,5 @@ training/
 *.zip
 *.tar.gz
 Doc/extracted_build_guide.txt
+models/peterhdd_best.*
+models/pothole_int8.*
