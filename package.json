@@ -1,6 +1,7 @@
 {
   "name": "potholeguard",
   "version": "1.0.0",
+  "type": "module",
   "private": true,
   "description": "Phone-only PWA for real-time pothole detection and rider warning",
   "scripts": {
