@@ -4,7 +4,9 @@ A lightweight, phone-only Progressive Web App (PWA) designed for two-wheelers th
 
 **Capstone Project — BCA**
 
-GitHub Repository: [https://github.com/Suraj18-108/Pothole](https://github.com/Suraj18-108/Pothole)
+- **Live Production App:** [https://pothole-beta.vercel.app](https://pothole-beta.vercel.app)
+- **GitHub Repository:** [https://github.com/AdarshKasaudhan1/Pothole](https://github.com/AdarshKasaudhan1/Pothole)
+- **Current Release:** `v10.0.0` (Offline-first PWA, WASM SIMD, INT8 YOLO)
 
 ---
 
@@ -50,7 +52,7 @@ GitHub Repository: [https://github.com/Suraj18-108/Pothole](https://github.com/S
    ```
 2. Open [https://vercel.com](https://vercel.com) and log in.
 3. Click **"Add New..." &rarr; "Project"**.
-4. Import your repository: `Suraj18-108/Pothole`.
+4. Import your repository: `AdarshKasaudhan1/Pothole`.
 5. Keep Framework Preset as **"Other"** (Static HTML, no build command).
 6. Click **Deploy**. Vercel will deploy in seconds and generate an HTTPS URL.
 
@@ -121,7 +123,7 @@ potholeguard/
 ├── risk.js               # Time-To-Pothole (TTP) calculation, risk levels (NONE/INFO/WARN/HIGH), hysteresis, cooldown (pure JS)
 ├── alerts.js             # SpeechSynthesis voice, Vibration API pulses, Web Audio synthesizer beeps, visual HUD banner
 ├── logger.js             # 200ms session telemetry logging, IndexedDB offline persistence, marked events, summary report, CSV export
-├── sw.js                 # Service worker with offline precaching (CACHE_VERSION = 'potholeguard-v7.0.0')
+├── sw.js                 # Service worker with offline precaching (CACHE_VERSION = 'potholeguard-v10.0.0')
 ├── manifest.json         # PWA installation manifest (standalone, icons, landscape-primary)
 ├── tests.html            # In-browser test runner verifying 21 pure-logic unit tests
 ├── /lib                  # Local offline ONNX Runtime Web 1.30.0 bundle & WASM binaries
